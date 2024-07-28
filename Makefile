@@ -48,11 +48,6 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
 
-lint/flake8: ## check style with flake8
-	flake8 litestar_ormar tests
-
-
-lint: lint/flake8 ## check style
 
 test: ## run tests quickly with the default Python
 	pytest
