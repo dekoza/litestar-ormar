@@ -4,7 +4,7 @@ version = "0.0.1"
 description = "Ormar integration for Litestar."
 authors = ["Dominik Kozaczko <dominik@kozaczko.info>"]
 license = "Apache-2.0"
-readme = "README.rst"
+readme = "README.md"
 packages = [
     { include = "litestar_ormar", from = "src" }
 ]
