@@ -17,10 +17,12 @@ from litestar.repository.filters import (
 )
 from ormar.queryset.clause import FilterGroup
 
+
 if TYPE_CHECKING:
     from litestar.repository.filters import FilterTypes
+    from typing import TypeVar
 
-    T = ormar.Model
+    T = TypeVar("T", bound=ormar.Model)
     CollectionT = ormar.QuerySet
 
 
@@ -120,9 +122,10 @@ class OrmarRepository(AbstractAsyncRepository):
         except ormar.NoMatch as e:
             raise NotFoundError("No item found when one was expected") from e
 
-    async def get_one(self, **kwargs: Any) -> T:
+    async def get_one(self, *filters: FilterTypes) -> T:
+        qs = self._apply_filters(self.model_type.objects, *filters)
         try:
-            return await self.model_type.objects.filter(**kwargs).first()
+            return await qs.first()
         except ormar.NoMatch as e:
             raise NotFoundError("No item found when one was expected") from e
 
