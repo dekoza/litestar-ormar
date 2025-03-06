@@ -159,9 +159,10 @@ async def test_get_one():
     async with base_ormar_config.database:
         objects = [await ExampleModel(name=f"test_{i}").save() for i in range(5)]
         obj_ids = [obj.id for obj in objects]
-        result = await repo.get_one(name__startswith="test")
-        assert result is not None
-        assert result.id in obj_ids
+        for i in range(5):
+            result = await repo.get_one(name=f"test_{i}")
+            assert result is not None
+            assert result.id in obj_ids
 
 
 @pytest.mark.asyncio

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import ormar
-from litestar.repository import AbstractAsyncRepository, NotFoundError
+from litestar.repository import AbstractAsyncRepository, NotFoundError, RepositoryError
 from litestar.repository.filters import (
     BeforeAfter,
     CollectionFilter,
@@ -107,7 +107,8 @@ class OrmarRepository(AbstractAsyncRepository):
         return obj
 
     async def delete_many(self, item_ids: list[Any]) -> list[T]:
-        qs = self.model_type.objects.filter(id__in=item_ids)
+        params = {f"{self.id_attribute}__in": item_ids}
+        qs = self.model_type.objects.filter(**params)
         result = await qs.all()
         await qs.delete()
         return result
@@ -117,13 +118,14 @@ class OrmarRepository(AbstractAsyncRepository):
         return await qs.filter(**kwargs).exists()
 
     async def get(self, item_id: Any, **kwargs: Any) -> T:
+        params = {f"{self.id_attribute}": item_id}
         try:
-            return await self.model_type.objects.get(id=item_id, **kwargs)
+            return await self.model_type.objects.get(**params, **kwargs)
         except ormar.NoMatch as e:
             raise NotFoundError("No item found when one was expected") from e
 
-    async def get_one(self, *filters: FilterTypes) -> T:
-        qs = self._apply_filters(self.model_type.objects, *filters)
+    async def get_one(self, **kwargs: Any) -> T:
+        qs = self.model_type.objects.filter(**kwargs)
         try:
             return await qs.first()
         except ormar.NoMatch as e:
@@ -137,9 +139,11 @@ class OrmarRepository(AbstractAsyncRepository):
 
     @ensure_type
     async def update(self, data: T) -> T:
-        if data.id is None:
+        data_id = getattr(data, f"{self.id_attribute}")
+        params = {f"{self.id_attribute}": data_id}
+        if data_id is None:
             raise NotFoundError("No item found when one was expected")
-        if not await self.model_type.objects.filter(id=data.id).update(
+        if not await self.model_type.objects.filter(**params).update(
             **data.model_dump()
         ):
             raise NotFoundError("No item found when one was expected")
@@ -147,14 +151,21 @@ class OrmarRepository(AbstractAsyncRepository):
 
     @ensure_type
     async def update_many(self, data: list[T]) -> list[T]:
-        await self.model_type.objects.bulk_update(data)
-        return data
+        result = []
+        async with self.model_type.ormar_config.database.transaction():
+            for obj in data:
+                result.append(await self.update(obj))
+        # TODO: find way to use: await self.model_type.objects.bulk_update(data)
+        return result
 
     @ensure_type
     async def upsert(self, data: T) -> T:
-        if data.id is None or isinstance(data.id, UUID):
+        data_id = getattr(data, f"{self.id_attribute}")
+        params = {f"{self.id_attribute}": data_id}
+
+        if data_id is None or isinstance(data_id, UUID):
             return await data.upsert()
-        if not await self.model_type.objects.filter(id=data.id).update(
+        if not await self.model_type.objects.filter(**params).update(
             **data.model_dump()
         ):
             raise NotFoundError("No item found when one was expected")
@@ -182,4 +193,6 @@ class OrmarRepository(AbstractAsyncRepository):
     def filter_collection_by_kwargs(
         self, collection: CollectionT, /, **kwargs: Any
     ) -> CollectionT:
+        if unknown_fields := set(self.model_type.model_fields) - set(kwargs):
+            raise RepositoryError(f"Unknown field(s): {', '.join(unknown_fields)}")
         return collection.filter(**kwargs)
