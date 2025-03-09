@@ -141,15 +141,12 @@ class OrmarRepository(AbstractAsyncRepository):
     async def update(self, data: T) -> T:
         data_id = getattr(data, f"{self.id_attribute}")
         params = {f"{self.id_attribute}": data_id}
-        if data_id is None:
-            raise NotFoundError("No item found when one was expected")
-        if not await self.model_type.objects.filter(**params).update(
-            **data.model_dump(exclude_list=True, exclude_through_models=True)
+        if data_id is None or (
+            isinstance(data_id, UUID)
+            and not await self.model_type.objects.filter(**params).exists()
         ):
             raise NotFoundError("No item found when one was expected")
-        else:
-            await data.save_related(follow=True)
-        return data
+        return await data.update()
 
     @ensure_type
     async def update_many(self, data: list[T]) -> list[T]:

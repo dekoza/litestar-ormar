@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "litestar-ormar"
-version = "0.0.4"
+version = "0.0.5"
 description = "Ormar integration for Litestar."
 authors = ["Dominik Kozaczko <dominik@kozaczko.info>"]
 license = "Apache-2.0"
