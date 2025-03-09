@@ -2,7 +2,7 @@
 
 __author__ = """Dominik Kozaczko"""
 __email__ = "dominik@kozaczko.info"
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 from .repositories import OrmarRepository
 

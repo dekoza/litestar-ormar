@@ -144,9 +144,11 @@ class OrmarRepository(AbstractAsyncRepository):
         if data_id is None:
             raise NotFoundError("No item found when one was expected")
         if not await self.model_type.objects.filter(**params).update(
-            **data.model_dump()
+            **data.model_dump(exclude_list=True, exclude_through_models=True)
         ):
             raise NotFoundError("No item found when one was expected")
+        else:
+            await data.save_related(follow=True)
         return data
 
     @ensure_type
@@ -154,6 +156,7 @@ class OrmarRepository(AbstractAsyncRepository):
         result = []
         async with self.model_type.ormar_config.database.transaction():
             for obj in data:
+                await obj.save_related(follow=True)
                 result.append(await self.update(obj))
         # TODO: find way to use: await self.model_type.objects.bulk_update(data)
         return result
@@ -161,15 +164,11 @@ class OrmarRepository(AbstractAsyncRepository):
     @ensure_type
     async def upsert(self, data: T) -> T:
         data_id = getattr(data, f"{self.id_attribute}")
-        params = {f"{self.id_attribute}": data_id}
 
         if data_id is None or isinstance(data_id, UUID):
             return await data.upsert()
-        if not await self.model_type.objects.filter(**params).update(
-            **data.model_dump()
-        ):
-            raise NotFoundError("No item found when one was expected")
-        return data
+        else:
+            return await self.update(data)
 
     @ensure_type
     async def upsert_many(self, data: list[T]) -> list[T]:
