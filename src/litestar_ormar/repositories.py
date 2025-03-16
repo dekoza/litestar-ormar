@@ -178,8 +178,7 @@ class OrmarRepository(AbstractAsyncRepository):
     async def list_and_count(
         self, *filters: FilterTypes, **kwargs: Any
     ) -> tuple[list[T], int]:
-        qs = self._apply_filters(self.model_type.objects, *filters)
-        result = await qs.all(**kwargs)
+        result = await self.list(*filters, **kwargs)
         return result, len(result)
 
     async def list(self, *filters: FilterTypes, **kwargs: Any) -> list[T]:
